@@ -6,7 +6,7 @@ export default function StyleSelect({
   onChange,
 }: {
   value: string;
-  onChange: (v: (typeof STYLES)[number]) => void;
+  onChange: (v: (typeof STYLES | (string & {}))[number]) => void;
 }) {
   return (
     <div className="mt-3">
@@ -17,7 +17,7 @@ export default function StyleSelect({
         <select
           id="style"
           value={value}
-          onChange={(e) => onChange(e.target.value as any)}
+          onChange={(e) => onChange(e.target.value)}
           className="block w-full appearance-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
           aria-label="Select a style"
         >

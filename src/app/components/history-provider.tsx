@@ -63,7 +63,7 @@ export function HistoryProvider({ children }: { children: React.ReactNode }) {
     void onHistorySelect(item);
   };
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+  // biome-ignore lint/correctness/useExhaustiveDependencies: <adding updateHistory will cause re-rendering>
   const removeHistory = useCallback((item: GeneratedResponse) => {
     setHistory((prev) => {
       const updated = prev.filter((i) => i.id !== item.id);

@@ -1,5 +1,5 @@
 import Image from "next/image";
-import React, {Fragment} from "react";
+import React from "react";
 import {useHistory} from "@/hooks/use-history";
 import type {ItemDetails} from "@/lib/constants";
 import {cn} from "@/lib/utils";

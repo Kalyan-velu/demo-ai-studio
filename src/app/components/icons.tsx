@@ -1,8 +1,8 @@
-import type React, {ComponentProps} from "react";
+import type {ComponentProps, SVGProps} from "react";
 
 import {cn} from "@/lib/utils";
 
-export function UploadIcon(props: React.SVGProps<SVGSVGElement>) {
+export function UploadIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" {...props}>
       <path
@@ -39,13 +39,13 @@ export function ChevronDown(props: React.SVGProps<SVGSVGElement>) {
 
 export function WarningIcon({ className, ...props }: ComponentProps<"svg">) {
   return (
-    // biome-ignore lint/a11y/noSvgWithoutTitle: <explanation>
-<svg
+    <svg
       viewBox="0 0 24 24"
       fill="none"
       className={cn("h-5 w-5 text-amber-600", className)}
       {...props}
     >
+      <title>Warning Icon</title>
       <path
         d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.72-3L13.71 3.86a2 2 0 0 0-3.42 0Z"
         stroke="currentColor"

@@ -57,13 +57,13 @@ export async function downscaleImage(
 
   await new Promise<void>((resolve, reject) => {
     const img = new Image();
-    (img as any).crossOrigin = "anonymous";
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       ctx.drawImage(img, 0, 0, targetW, targetH);
       resolve();
     };
     img.onerror = (e) => reject(e);
-    (img as any).src = dataUrl;
+    img.src = dataUrl;
   });
 
   return new Promise<Blob>((resolve) => {

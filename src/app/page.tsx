@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 
-import type {ComponentProps, MouseEvent} from "react";
+import type {ComponentProps} from "react";
 import {useMemo, useRef, useState} from "react";
 import Histories from "@/app/components/history";
 import {useFetch} from "@/hooks/use-fetch";
@@ -50,7 +50,6 @@ const validateBody = (
 };
 
 export default function Page() {
-  const abortController = useRef<AbortController | null>(null);
   const {
     loading: generating,
     execute,
@@ -125,7 +124,7 @@ export default function Page() {
     };
   }, [prompt, style, item?.src, item?.name]);
 
-  const generateImage = async (e: MouseEvent<HTMLButtonElement>) => {
+  const generateImage = async () => {
     try {
       if (!item) {
         alert("Please add an image.");

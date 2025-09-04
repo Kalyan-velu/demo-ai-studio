@@ -15,7 +15,7 @@ function DropZone({
 }) {
   const [active, setActive] = useState(false);
   return (
-    // biome-ignore lint/a11y/useSemanticElements: <explanation>
+    // biome-ignore lint/a11y/useSemanticElements: <role>
     <div
       onDragOver={(e) => {
         e.preventDefault();
