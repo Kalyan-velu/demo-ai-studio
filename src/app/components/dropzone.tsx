@@ -1,9 +1,8 @@
-"use client";
-import {useState} from "react";
 import type React from "react";
+import {useState} from "react";
 import {cn} from "@/lib/utils";
 
-export function DropZone({
+function DropZone({
   hasImage,
   onDrop,
   onBrowseClick,
@@ -16,6 +15,7 @@ export function DropZone({
 }) {
   const [active, setActive] = useState(false);
   return (
+    // biome-ignore lint/a11y/useSemanticElements: <explanation>
     <div
       onDragOver={(e) => {
         e.preventDefault();
@@ -27,6 +27,7 @@ export function DropZone({
         onDrop(e);
       }}
       role="region"
+      aria-roledescription="Image upload area"
       aria-label="Image upload area"
       className={cn(
         "rounded-xl border border-slate-200 bg-white p-2",
@@ -37,6 +38,7 @@ export function DropZone({
       {!hasImage && (
         <div className="mt-3 flex items-center justify-center">
           <button
+            type={"button"}
             onClick={onBrowseClick}
             className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
           >

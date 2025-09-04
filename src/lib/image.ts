@@ -13,8 +13,9 @@ export function blobToDataURL(blob: Blob): Promise<string> {
   });
 }
 
-export function dataUrlToBlob(dataURL: string): Promise<Blob> {
-  return fetch(dataURL).then((r) => r.blob());
+export async function dataUrlToBlob(dataURL: string): Promise<Blob> {
+  const r = await fetch(dataURL);
+  return await r.blob();
 }
 
 export function getImageDims(

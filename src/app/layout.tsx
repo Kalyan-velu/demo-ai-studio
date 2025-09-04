@@ -1,6 +1,8 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type {Metadata} from "next";
+import {Geist, Geist_Mono} from "next/font/google";
 import "./globals.css";
+import type {ReactNode} from "react";
+import {HistoryProvider} from "@/app/components/history-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -20,14 +22,14 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <HistoryProvider>{children}</HistoryProvider>
       </body>
     </html>
   );

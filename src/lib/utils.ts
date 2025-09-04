@@ -9,3 +9,11 @@ import {twMerge} from "tailwind-merge";
 export function cn(...inputs: ClassArray) {
   return twMerge(clsx(inputs));
 }
+
+export function isSupported(file: File) {
+  return ["image/png", "image/jpeg"].includes(file.type);
+}
+
+export function fileSizeMB(file: File | Blob) {
+  return +(file.size / (1024 * 1024)).toFixed(2);
+}

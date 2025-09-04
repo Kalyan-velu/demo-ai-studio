@@ -12,7 +12,7 @@ export default function LiveSummaryCard({
   title: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200">
+    <div className="rounded-xl mt-8 border border-slate-200">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2">
         <h3 className="text-sm font-semibold">Live Summary</h3>
         <span className="rounded bg-blue-600 px-2 py-0.5 text-xs font-medium text-white">
@@ -25,7 +25,7 @@ export default function LiveSummaryCard({
             <div className="relative h-20 w-full overflow-hidden rounded-md border border-slate-200 bg-slate-100">
               {image ? (
                 <Image
-                  src={image || "/placeholder.svg"}
+                  src={image}
                   alt="Summary thumbnail"
                   fill
                   className="object-cover"

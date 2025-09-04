@@ -1,143 +1,159 @@
 "use client";
 
 import Image from "next/image";
-import type React from "react";
-import {useEffect, useMemo, useRef, useState} from "react";
-import {HISTORY_KEY, type HistoryItem, MAX_FILE_MB, MAX_WIDTH, type STYLES,} from "@/lib/constants";
-import {addSuffix, blobToDataURL, dataUrlToBlob, downscaleImage, getImageDims,} from "@/lib/image";
-import {cn} from "@/lib/utils";
-import DropZone from "./components/dropzone";
-import EmptyPreview from "./components/EmptyPreview";
-import {WarningIcon} from "./components/icons";
-import LiveSummaryCard from "./components/LiveSummaryCard";
-import StyleSelect from "./components/StyleSelect";
 
-// Color system (4 colors total):
-// - Primary: blue-600
-// - Neutrals: white, slate-100/200, slate-900
-// - Accent: amber-500
+import type {ComponentProps, MouseEvent} from "react";
+import {useMemo, useRef, useState} from "react";
+import Histories from "@/app/components/history";
+import {useFetch} from "@/hooks/use-fetch";
+import {useHistory} from "@/hooks/use-history";
+import {
+  type GeneratedResponse,
+  type GenerateReqBody,
+  type ItemDetails,
+  MAX_FILE_MB,
+  MAX_WIDTH,
+  type STYLES,
+} from "@/lib/constants";
+import {addSuffix, blobToDataURL, dataUrlToBlob, downscaleImage, getImageDims,} from "@/lib/image";
+import {cn, fileSizeMB, isSupported} from "@/lib/utils";
+import DropZone from "./components/dropzone";
+import EmptyPreview from "./components/empty-preview";
+import {WarningIcon} from "./components/icons";
+import LiveSummaryCard from "./components/live-summary-card";
+import StyleSelect from "./components/style-select";
+
+const validateBody = (
+  data: GenerateReqBody,
+):
+  | { isValid: false; reason: string }
+  | {
+      isValid: true;
+      data: GenerateReqBody;
+    } => {
+  if (!data.imageDataUrl) {
+    return {
+      isValid: false,
+      reason: "No image selected",
+    };
+  }
+  if (!data.prompt || data.prompt.trim() === "") {
+    return {
+      isValid: false,
+      reason: "Prompt can't be empty.",
+    };
+  }
+  return {
+    isValid: true,
+    data,
+  };
+};
 
 export default function Page() {
-  const [current, setCurrent] = useState<HistoryItem | null>(null);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const abortController = useRef<AbortController | null>(null);
+  const {
+    loading: generating,
+    execute,
+    abort,
+    aborted,
+  } = useFetch<GeneratedResponse>();
+
+  const [item, setItem] = useState<ItemDetails | null>();
+  const { appendHistory } = useHistory();
   const [prompt, setPrompt] = useState("");
-  const [style, setStyle] = useState<(typeof STYLES)[number]>("Editorial");
+  const [style, setStyle] =
+    useState<(typeof STYLES | (string & {}))[number]>("Editorial");
   const [oversize, setOversize] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  
-  // Load and persist history in localStorage (not a network fetch).
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(HISTORY_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as HistoryItem[];
-        setHistory(parsed);
-        if (parsed.length) {
-          setCurrent(parsed[0]);
-          setPrompt(parsed[0].prompt || "");
-          setStyle((parsed[0].style as any) || "Editorial");
-        }
-      }
-    } catch {
-    }
-  }, []);
-  
-  useEffect(() => {
-    try {
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 12)));
-    } catch {
-    }
-  }, [history]);
-  
+
   const onBrowseClick = () => inputRef.current?.click();
-  
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     const file = e.dataTransfer.files?.[0];
     if (file) handleFile(file);
   };
-  
+
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleFile(file);
   };
-  
-  function isSupported(file: File) {
-    const okType = ["image/png", "image/jpeg"].includes(file.type);
-    return okType;
-  }
-  
-  function fileSizeMB(file: File | Blob) {
-    return +(file.size / (1024 * 1024)).toFixed(2);
-  }
-  
+
   async function handleFile(file: File | Blob, forcedName?: string) {
-    // Check type when a File (for Blob downscale result, skip type check)
     if (file instanceof File && !isSupported(file)) {
       alert("Only PNG and JPG files are supported.");
       return;
     }
-    
+
     const sizeOk = fileSizeMB(file) <= MAX_FILE_MB;
     setOversize(!sizeOk);
-    
+
     // Read to data URL for preview/history
     const dataUrl = await blobToDataURL(file);
     const dims = await getImageDims(dataUrl);
-    
-    const item: HistoryItem = {
-      id: crypto.randomUUID(),
+
+    const item: ItemDetails = {
       src: dataUrl,
       name:
         forcedName ??
-        (file instanceof File
-          ? file.name
-          : `image-${new Date().getTime()}.jpg`),
+        (file instanceof File ? file.name : `image-${Date.now()}.jpg`),
       sizeMB: fileSizeMB(file),
       width: dims.width,
       height: dims.height,
       prompt,
       style,
-      createdAt: Date.now(),
     };
-    
-    setCurrent(item);
-    setHistory((prev) =>
-      [item, ...prev.filter((p) => p.src !== item.src)].slice(0, 12),
-    );
+    setItem(item);
   }
-  
+
   async function handleDownscale() {
-    if (!current) return;
+    if (!item) return;
     // Convert current.src back to Image and downscale
-    const blob = await dataUrlToBlob(current.src);
+    const blob = await dataUrlToBlob(item.src);
     const resultBlob = await downscaleImage(blob, MAX_WIDTH, 0.9);
-    await handleFile(resultBlob, addSuffix(current.name, "-1920w.jpg"));
+    await handleFile(resultBlob, addSuffix(item.name, "-1920w.jpg"));
     setOversize(fileSizeMB(resultBlob) > MAX_FILE_MB); // re-evaluate
   }
-  
+
   const liveSummary = useMemo(() => {
     return {
       prompt,
       style,
-      thumb: current?.src ?? "",
-      name: current?.name ?? "No image selected",
+      thumb: item?.src ?? "",
+      name: item?.name ?? "No image selected",
     };
-  }, [prompt, style, current]);
-  
-  const restoreFromHistory = (item: HistoryItem) => {
-    setCurrent(item);
-    setPrompt(item.prompt || "");
-    setStyle((item.style as any) || "Editorial");
-    setOversize(item.sizeMB > MAX_FILE_MB);
-    // Move restored item to front
-    setHistory((prev) => {
-      const without = prev.filter((p) => p.id !== item.id);
-      return [item, ...without];
-    });
+  }, [prompt, style, item?.src, item?.name]);
+
+  const generateImage = async (e: MouseEvent<HTMLButtonElement>) => {
+    try {
+      if (!item) {
+        alert("Please add an image.");
+        return;
+      }
+
+      const validate = validateBody({
+        imageDataUrl: item?.src,
+        prompt,
+        style: style,
+      });
+      if (!validate.isValid) {
+        alert(validate.reason);
+        return;
+      }
+      const res = await execute(`/api/generate`, {
+        method: "POST",
+        body: JSON.stringify(validate.data),
+      });
+      if ("data" in res && res.data) {
+        appendHistory(res.data);
+      }
+    } catch (e) {
+      console.log(e);
+      alert("Something went wrong. Please try again.");
+    }
   };
-  
+
   return (
     <main className="min-h-dvh bg-white text-slate-900">
       <section className="mx-auto max-w-6xl px-4 py-6 grid gap-6 md:grid-cols-5">
@@ -149,10 +165,10 @@ export default function Page() {
               role="alert"
               className="flex items-start gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-slate-900"
             >
-              <WarningIcon/>
+              <WarningIcon />
               <div className="flex-1">
                 <p className="font-medium">
-                  Large file detected ({current?.sizeMB ?? 0} MB). Consider
+                  Large file detected ({item?.sizeMB ?? 0} MB). Consider
                   downscaling to max width {MAX_WIDTH}px before submitting.
                 </p>
                 <p className="text-slate-700">
@@ -160,6 +176,7 @@ export default function Page() {
                 </p>
               </div>
               <button
+                type={"button"}
                 onClick={handleDownscale}
                 className="shrink-0 rounded-md border border-amber-300 bg-white px-3 py-1 text-sm font-medium hover:bg-amber-100"
               >
@@ -167,50 +184,54 @@ export default function Page() {
               </button>
             </div>
           )}
-          
+
           <DropZone
             onDrop={onDrop}
             onBrowseClick={onBrowseClick}
-            hasImage={!!current?.src}
+            hasImage={!!item?.src}
           >
-            {current?.src ? (
+            {item?.src ? (
               <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-slate-200">
                 {/* Using next/image for optimization */}
                 <Image
-                  src={current.src || "/placeholder.svg"}
-                  alt={current?.name || "Uploaded image preview"}
+                  src={item.src || "/placeholder.svg"}
+                  alt={item?.name || "Uploaded image preview"}
                   fill
                   sizes="(max-width: 768px) 100vw, 60vw"
                   className="object-contain bg-slate-100"
                 />
                 <div className="absolute left-2 top-2 rounded-md bg-white/80 px-2 py-1 text-xs font-medium shadow">
-                  {(current.width || 0) + "×" + (current.height || 0)} •{" "}
-                  {current.sizeMB} MB
+                  {`${item.width || 0}"×"${item.height || 0}`} • {item.sizeMB}{" "}
+                  MB
                 </div>
               </div>
             ) : (
-              <EmptyPreview/>
+              <EmptyPreview />
             )}
           </DropZone>
-          
-          {/* Hidden input */}
+
           <input
             ref={inputRef}
             type="file"
             accept="image/png,image/jpeg"
             onChange={onFileChange}
             className="sr-only"
-            aria-hidden="true"
           />
           <p className="text-xs text-slate-600">
             Supported: PNG, JPG. Max size: {MAX_FILE_MB}MB. Drag & drop or click
             “Upload Image”.
           </p>
+
+          <LiveSummaryCard
+            image={liveSummary.thumb}
+            prompt={liveSummary.prompt}
+            style={liveSummary.style}
+            title={liveSummary.name}
+          />
         </div>
-        
-        {/* Right: Prompt & Style */}
+
         <aside className="md:col-span-2 space-y-4">
-          <div className="rounded-xl border border-slate-200 p-4">
+          <div className="">
             <h2 className="mb-2 text-base font-semibold">Prompt & Style</h2>
             <label htmlFor="prompt" className="sr-only">
               Prompt
@@ -223,67 +244,67 @@ export default function Page() {
               className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm leading-6 outline-none focus:ring-2 focus:ring-blue-600"
               rows={4}
             />
-            <StyleSelect value={style} onChange={setStyle}/>
+            <StyleSelect value={style} onChange={setStyle} />
+            <div className="flex mt-4 gap-2">
+              <button
+                onClick={generateImage}
+                type={"button"}
+                className="flex-1  bg-blue-600 text-white rounded-lg p-2 flex items-center justify-center  gap-x-2"
+              >
+                {generating ? (
+                  <>
+                    <SpinnerIcon className={" size-5"} /> Processing...
+                  </>
+                ) : (
+                  "Generate"
+                )}
+              </button>
+              <button
+                disabled={aborted || !generating}
+                type={"button"}
+                onClick={abort}
+                className="flex-1 bg-red-600 disabled:bg-red-200 text-white rounded-lg p-2"
+              >
+                Abort
+              </button>
+            </div>
+            <Histories
+              onSelect={async (item, forcedName) => {
+                setPrompt(item.prompt);
+                setStyle(item.style);
+                await handleFile(item.file, forcedName);
+              }}
+            />
           </div>
-          
-          <LiveSummaryCard
-            image={liveSummary.thumb}
-            prompt={liveSummary.prompt}
-            style={liveSummary.style}
-            title={liveSummary.name}
-          />
         </aside>
-      </section>
-      
-      <section className="mx-auto max-w-6xl px-4 pb-10">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-base font-semibold">History</h3>
-          <button
-            className="text-sm text-slate-600 hover:text-slate-900 underline-offset-2 hover:underline"
-            onClick={() => {
-              setHistory([]);
-              setCurrent(null);
-              localStorage.removeItem(HISTORY_KEY);
-            }}
-          >
-            Clear
-          </button>
-        </div>
-        {history.length === 0 ? (
-          <p className="text-sm text-slate-600">No uploads yet.</p>
-        ) : (
-          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {history.map((item) => (
-              <li key={item.id}>
-                <button
-                  onClick={() => restoreFromHistory(item)}
-                  className={cn(
-                    "group block w-full overflow-hidden rounded-lg border",
-                    "border-slate-200 bg-white text-left hover:border-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600",
-                  )}
-                >
-                  <div className="relative aspect-video w-full">
-                    <Image
-                      src={item.src || "/placeholder.svg"}
-                      alt={item.name}
-                      fill
-                      className="object-cover transition-transform group-hover:scale-[1.02]"
-                    />
-                  </div>
-                  <div className="p-2">
-                    <p className="line-clamp-1 text-sm font-medium">
-                      {item.name}
-                    </p>
-                    <p className="text-xs text-slate-600">
-                      {item.style} • {item.sizeMB} MB
-                    </p>
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
     </main>
   );
 }
+
+const SpinnerIcon = ({ className, ...props }: ComponentProps<"svg">) => {
+  return (
+    <svg
+      className={cn("animate-spin text-white", className)}
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      {...props}
+    >
+      <title>Spinner</title>
+      <circle
+        className="opacity-25"
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeWidth="4"
+      ></circle>
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+      ></path>
+    </svg>
+  );
+};
