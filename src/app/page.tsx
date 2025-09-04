@@ -126,6 +126,9 @@ export default function Page() {
 
   const generateImage = async () => {
     try {
+      if (generating) {
+        return;
+      }
       if (!item) {
         alert("Please add an image.");
         return;
